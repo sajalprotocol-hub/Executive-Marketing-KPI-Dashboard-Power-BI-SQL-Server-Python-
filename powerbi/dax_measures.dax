@@ -1,0 +1,157 @@
+-- Power BI DAX Measures and Calculated Columns
+
+-- Core KPI Measures
+
+// Total Revenue
+Total_Revenue = SUMX(CampaignPerformance, CampaignPerformance[Revenue])
+
+// Total Marketing Spend
+Total_Marketing_Spend = SUMX(CampaignPerformance, CampaignPerformance[Spend])
+
+// Marketing ROI %
+Marketing_ROI = IF(
+    [Total_Marketing_Spend] = 0,
+    BLANK(),
+    (([Total_Revenue] - [Total_Marketing_Spend]) / [Total_Marketing_Spend]) * 100
+)
+
+// Return on Ad Spend (ROAS)
+ROAS = IF(
+    [Total_Marketing_Spend] = 0,
+    BLANK(),
+    [Total_Revenue] / [Total_Marketing_Spend]
+)
+
+// Total Impressions
+Total_Impressions = SUMX(CampaignPerformance, CampaignPerformance[Impressions])
+
+// Total Clicks
+Total_Clicks = SUMX(CampaignPerformance, CampaignPerformance[Clicks])
+
+// Click Through Rate (CTR) %
+CTR_Percentage = IF(
+    [Total_Impressions] = 0,
+    BLANK(),
+    ([Total_Clicks] / [Total_Impressions]) * 100
+)
+
+// Total Conversions
+Total_Conversions = SUMX(CampaignPerformance, CampaignPerformance[Conversions])
+
+// Conversion Rate %
+Conversion_Rate = IF(
+    [Total_Clicks] = 0,
+    BLANK(),
+    ([Total_Conversions] / [Total_Clicks]) * 100
+)
+
+// Cost Per Lead (CPL)
+Cost_Per_Lead = IF(
+    COUNTA(Leads) = 0,
+    BLANK(),
+    [Total_Marketing_Spend] / COUNTA(Leads)
+)
+
+// Cost Per Acquisition (CPA)
+Cost_Per_Acquisition = IF(
+    COUNTIF(Leads, Leads[Status] = "Converted") = 0,
+    BLANK(),
+    [Total_Marketing_Spend] / COUNTIF(Leads, Leads[Status] = "Converted")
+)
+
+// Customer Acquisition Cost (CAC)
+Customer_Acquisition_Cost = [Cost_Per_Acquisition]
+
+// Total Leads Generated
+Total_Leads = COUNTA(Leads)
+
+// Qualified Leads
+Qualified_Leads = COUNTIF(Leads, Leads[Status] IN {"Qualified", "Converted"})
+
+// Converted Customers
+Converted_Customers = COUNTIF(Leads, Leads[Status] = "Converted")
+
+// Lead Conversion Rate %
+Lead_Conversion_Rate = IF(
+    [Total_Leads] = 0,
+    BLANK(),
+    ([Converted_Customers] / [Total_Leads]) * 100
+)
+
+// Average Lead Score
+Average_Lead_Score = AVERAGEX(Leads, Leads[LeadScore])
+
+// Marketing Efficiency (Revenue per Dollar Spent)
+Marketing_Efficiency = IF(
+    [Total_Marketing_Spend] = 0,
+    BLANK(),
+    [Total_Revenue] / [Total_Marketing_Spend]
+)
+
+// Customer Lifetime Value (LTV)
+Customer_Lifetime_Value = IF(
+    [Converted_Customers] = 0,
+    BLANK(),
+    [Total_Revenue] / [Converted_Customers]
+)
+
+// LTV to CAC Ratio
+LTV_to_CAC_Ratio = IF(
+    [Customer_Acquisition_Cost] = 0,
+    BLANK(),
+    [Customer_Lifetime_Value] / [Customer_Acquisition_Cost]
+)
+
+// Revenue Target Achievement %
+Revenue_Target_Achievement = DIVIDE(
+    SUMX(TeamMetrics, TeamMetrics[RevenueGenerated]),
+    SUMX(TeamMetrics, TeamMetrics[TargetRevenue]),
+    0
+) * 100
+
+// Days Since Last Campaign
+Days_Since_Last_Campaign = MAXX(
+    ALL(Campaigns),
+    INT(TODAY() - MAX(Campaigns[EndDate]))
+)
+
+// Campaign Performance Score (0-100)
+Campaign_Performance_Score = 
+    (([Marketing_ROI] / 100) * 0.3) +
+    ([CTR_Percentage] / 100 * 0.2) +
+    ([Conversion_Rate] / 100 * 0.3) +
+    ([Lead_Conversion_Rate] / 100 * 0.2)
+
+// Year-over-Year Revenue Growth %
+YoY_Revenue_Growth = 
+    VAR CurrentYearRevenue = SUMX(
+        FILTER(CampaignPerformance, YEAR(CampaignPerformance[Date]) = YEAR(TODAY())),
+        CampaignPerformance[Revenue]
+    )
+    VAR PreviousYearRevenue = SUMX(
+        FILTER(CampaignPerformance, YEAR(CampaignPerformance[Date]) = YEAR(TODAY()) - 1),
+        CampaignPerformance[Revenue]
+    )
+    RETURN IF(
+        PreviousYearRevenue = 0,
+        BLANK(),
+        ((CurrentYearRevenue - PreviousYearRevenue) / PreviousYearRevenue) * 100
+    )
+
+-- Campaign Calculated Columns
+
+// Campaign Duration (Days)
+Campaign_Duration = INT(IF(ISBLANK([EndDate]), TODAY(), [EndDate]) - [StartDate])
+
+// Budget Utilization %
+Budget_Utilization = IF(
+    [Budget] = 0,
+    BLANK(),
+    (SUM(CampaignPerformance[Spend]) / [Budget]) * 100
+)
+
+// Campaign Status Indicator
+Campaign_Status_Color = 
+    IF([Status] = "Active", "Green",
+    IF([Status] = "Completed", "Blue",
+    IF([Status] = "Planned", "Gray", "Red")))
